@@ -1,0 +1,3 @@
+import { z } from 'zod'; import { NextResponse } from 'next/server'; import { issueSession, verifyPassword } from '@/lib/auth'; import { query } from '@/lib/db'; import { jsonError } from '@/lib/api'
+const schema=z.object({email:z.string().email(),password:z.string()})
+export async function POST(request:Request){try{const input=schema.parse(await request.json());const user=await query(db=>db.users.find(u=>u.email===input.email.toLowerCase()));if(!user||!verifyPassword(input.password,user.passwordHash))throw new Error('Invalid email or password');await issueSession(user.id);return NextResponse.json({user:{...user,passwordHash:undefined}})}catch(e){return jsonError(e)}}
