@@ -31,7 +31,7 @@ function fallback(transcript: string, kind: OutputKind) {
   return templates[kind];
 }
 
-function provider() {
+export function getAiProvider() {
   if (
     (process.env.AI_PROVIDER === "gemini" || !process.env.ANTHROPIC_API_KEY) &&
     process.env.GEMINI_API_KEY
@@ -42,7 +42,7 @@ function provider() {
 }
 
 async function complete(prompt: string, json = false, maxTokens = 5000) {
-  if (provider() === "gemini") {
+  if (getAiProvider() === "gemini") {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({
       model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
@@ -55,7 +55,7 @@ async function complete(prompt: string, json = false, maxTokens = 5000) {
     });
     return response.text?.trim() || "";
   }
-  if (provider() === "anthropic") {
+  if (getAiProvider() === "anthropic") {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const message = await client.messages.create({
       model: process.env.CLAUDE_MODEL || "claude-sonnet-4-5-20250929",
@@ -78,7 +78,7 @@ export async function generateContent(
   only?: OutputKind,
 ) {
   const kinds = only ? [only] : [...outputKinds];
-  if (provider() === "fallback")
+  if (getAiProvider() === "fallback")
     return Object.fromEntries(
       kinds.map((kind) => [kind, fallback(transcript, kind)]),
     ) as Partial<Record<OutputKind, string>>;
@@ -91,7 +91,7 @@ export async function generateContent(
 }
 
 export async function suggestMemory(original: string, edited: string) {
-  if (provider() === "fallback" || original.trim() === edited.trim())
+  if (getAiProvider() === "fallback" || original.trim() === edited.trim())
     return null;
   const result = await complete(
     `Identify one reusable writing preference demonstrated by this edit. Return only the preference sentence, or NONE if the edit is content-specific.\n\nOriginal:\n${original}\n\nEdited:\n${edited}`,
