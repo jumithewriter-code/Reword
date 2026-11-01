@@ -1,3 +1,41 @@
-import { NextResponse } from 'next/server'; import { z } from 'zod'; import { requireUser } from '@/lib/auth'; import { mutate, query } from '@/lib/db'; import { addMemory, deleteMemory } from '@/lib/minds'; import { jsonError } from '@/lib/api'
-export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser(),{id}=await params,{content}=z.object({content:z.string().trim().min(3).max(500)}).parse(await request.json());const current=await query(db=>db.memories.find(m=>m.id===id&&m.userId===user.id));if(!current)throw new Response('Not found',{status:404});await deleteMemory(user.mindsId,current.remoteId);const remoteId=await addMemory(user.mindsId,id,content);await mutate(db=>{const m=db.memories.find(x=>x.id===id&&x.userId===user.id)!;m.content=content;m.remoteId=remoteId;m.updatedAt=new Date().toISOString()});return NextResponse.json({ok:true})}catch(e){return jsonError(e)}}
-export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser(),{id}=await params;const current=await query(db=>db.memories.find(m=>m.id===id&&m.userId===user.id));if(!current)throw new Response('Not found',{status:404});await deleteMemory(user.mindsId,current.remoteId);await mutate(db=>{db.memories=db.memories.filter(m=>!(m.id===id&&m.userId===user.id))});return NextResponse.json({ok:true})}catch(e){return jsonError(e)}}
+import { NextResponse } from 'next/server'
+import { bad, errorMessage, isResponse, requireUser } from '@/lib/api'
+import { deleteMemory, updateMemory } from '@/lib/onevoice'
+
+type Params = { params: Promise<{ id: string }> }
+
+export async function PATCH(request: Request, { params }: Params) {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+  const { id } = await params
+
+  const body = await request.json().catch(() => null)
+  const content = typeof body?.content === 'string' ? body.content.trim() : ''
+  if (!content) return bad('content is required')
+
+  try {
+    // Ownership is enforced by RLS; this check turns a silent no-op into a 404.
+    const { data: owned } = await ctx.supabase
+      .from('memories')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', ctx.userId)
+      .maybeSingle()
+    if (!owned) return bad('Memory not found', 404)
+    return NextResponse.json({ memory: await updateMemory(ctx.supabase, id, content) })
+  } catch (err) {
+    return bad(errorMessage(err), 500)
+  }
+}
+
+export async function DELETE(_request: Request, { params }: Params) {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+  const { id } = await params
+  try {
+    await deleteMemory(ctx.supabase, id)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    return bad(errorMessage(err), 500)
+  }
+}

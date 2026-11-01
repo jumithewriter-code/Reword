@@ -1,4 +1,0 @@
-import { hashPassword } from '../lib/security.ts'
-import { makeId, mutate } from '../lib/db.ts'
-const email='demo@reword.local'
-await mutate(db=>{if(db.users.some(u=>u.email===email))return;const userId=makeId('usr'),now=new Date().toISOString();db.users.push({id:userId,email,name:'Jordan Davis',passwordHash:hashPassword('RewordDemo123!'),niche:'Thought leadership',audience:'Independent creators and founders',tone:'Warm, direct, and useful',writingSample:'The best ideas rarely arrive polished. Start by saying the honest thing, then shape it until someone else can use it.',onboardingComplete:true,createdAt:now});db.memories.push({id:makeId('mem'),userId,content:'Preferred tone: Warm, direct, and useful',source:'onboarding',createdAt:now,updatedAt:now})});console.log('Demo login: demo@reword.local / RewordDemo123!')

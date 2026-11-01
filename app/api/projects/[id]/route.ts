@@ -1,5 +1,57 @@
-import { NextResponse } from 'next/server'; import { z } from 'zod'; import { requireUser } from '@/lib/auth'; import { mutate, query } from '@/lib/db'; import { jsonError } from '@/lib/api'; import { outputKinds } from '@/lib/types'; import { makeId } from '@/lib/db'; import { suggestMemory } from '@/lib/ai'
-export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser(),{id}=await params;const project=await query(db=>db.projects.find(p=>p.id===id&&p.userId===user.id));if(!project)throw new Response('Not found',{status:404});return NextResponse.json({project})}catch(e){return jsonError(e)}}
-const schema=z.object({title:z.string().min(1).optional(),transcript:z.string().optional(),saved:z.boolean().optional(),outputs:z.record(z.enum(outputKinds),z.string()).optional()})
-export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser(),{id}=await params,input=schema.parse(await request.json());const before=await query(db=>db.projects.find(p=>p.id===id&&p.userId===user.id));if(!before)throw new Response('Not found',{status:404});await mutate(db=>{const p=db.projects.find(x=>x.id===id&&x.userId===user.id)!;if(input.title!==undefined)p.title=input.title;if(input.transcript!==undefined)p.transcript=input.transcript;if(input.saved!==undefined)p.saved=input.saved;if(input.outputs)p.outputs={...p.outputs,...input.outputs};p.updatedAt=new Date().toISOString()});if(input.outputs){for(const [kind,edited] of Object.entries(input.outputs)){const original=before.outputs[kind as keyof typeof before.outputs];if(original&&original!==edited){const content=await suggestMemory(original,edited);if(content)await mutate(db=>{if(!db.suggestions.some(s=>s.userId===user.id&&s.projectId===id&&s.content===content&&s.status==='pending'))db.suggestions.push({id:makeId('sug'),userId:user.id,projectId:id,content,status:'pending',createdAt:new Date().toISOString()})})}}}return NextResponse.json({ok:true})}catch(e){return jsonError(e)}}
-export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser(),{id}=await params;await mutate(db=>{const index=db.projects.findIndex(p=>p.id===id&&p.userId===user.id);if(index<0)throw new Response('Not found',{status:404});db.projects.splice(index,1)});return NextResponse.json({ok:true})}catch(e){return jsonError(e)}}
+import { NextResponse } from 'next/server'
+import { bad, isResponse, requireUser } from '@/lib/api'
+
+type Params = { params: Promise<{ id: string }> }
+
+/** Library actions: rename, save, edit transcript (scope 3.5). */
+export async function PATCH(request: Request, { params }: Params) {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+  const { supabase, userId } = ctx
+  const { id } = await params
+
+  const body = await request.json().catch(() => null)
+  if (!body) return bad('Expected a JSON body')
+
+  const patch: Record<string, unknown> = {}
+  if (typeof body.title === 'string') {
+    const title = body.title.trim().slice(0, 120)
+    if (!title) return bad('Title cannot be empty')
+    patch.title = title
+  }
+  if (typeof body.transcript === 'string') patch.transcript = body.transcript
+  if (typeof body.saved === 'boolean') patch.saved = body.saved
+  if (!Object.keys(patch).length) return bad('Nothing to update')
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update(patch)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single()
+  if (error) return bad(error.message, 500)
+  return NextResponse.json({ project: data })
+}
+
+export async function DELETE(_request: Request, { params }: Params) {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+  const { supabase, userId } = ctx
+  const { id } = await params
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('audio_path')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const { error } = await supabase.from('projects').delete().eq('id', id).eq('user_id', userId)
+  if (error) return bad(error.message, 500)
+
+  if (project?.audio_path) {
+    await supabase.storage.from('audio').remove([project.audio_path])
+  }
+  return NextResponse.json({ ok: true })
+}

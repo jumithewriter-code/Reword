@@ -1,2 +1,0 @@
-import { NextResponse } from 'next/server'; import { currentUser } from '@/lib/auth'; import { query } from '@/lib/db'; import { status } from '@/lib/minds'
-export async function GET(){const user=await currentUser();if(!user)return NextResponse.json({user:null});const counts=await query(db=>({projects:db.projects.filter(p=>p.userId===user.id).length,memories:db.memories.filter(m=>m.userId===user.id).length}));return NextResponse.json({user:{...user,passwordHash:undefined},counts,oneVoice:await status(user.mindsId)})}

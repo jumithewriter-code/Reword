@@ -1,20 +1,62 @@
-export const outputKinds = ['linkedin_blog', 'x_thread', 'instagram_facebook', 'tiktok_reels'] as const
-export type OutputKind = (typeof outputKinds)[number]
+import type { FormatId } from '@/lib/formats'
 
-export type User = {
-  id: string; email: string; name: string; passwordHash?: string; googleId?: string
-  niche?: string; audience?: string; tone?: string; writingSample?: string
-  onboardingComplete: boolean; mindsId?: string; createdAt: string
+export type Profile = {
+  id: string
+  email: string | null
+  name: string | null
+  niche: string | null
+  audience: string | null
+  tone: string | null
+  writing_sample: string | null
+  onboarded: boolean
+  plan: 'free' | 'creator' | 'studio'
+  theme: string
+  language: string
+  minds_name: string | null
 }
-export type Memory = { id: string; userId: string; content: string; source: 'onboarding' | 'explicit' | 'edit'; remoteId?: string; createdAt: string; updatedAt: string }
-export type Suggestion = { id: string; userId: string; projectId: string; content: string; status: 'pending' | 'approved' | 'dismissed'; createdAt: string }
+
 export type Project = {
-  id: string; userId: string; title: string; transcript: string; outputs: Partial<Record<OutputKind, string>>
-  saved: boolean; sourceType: 'recording' | 'upload' | 'text'; createdAt: string; updatedAt: string
+  id: string
+  user_id: string
+  title: string
+  source_type: 'record' | 'upload'
+  audio_path: string | null
+  duration_sec: number | null
+  transcript: string
+  saved: boolean
+  created_at: string
+  updated_at: string
 }
-export type Database = { users: User[]; memories: Memory[]; suggestions: Suggestion[]; projects: Project[] }
 
-export const outputLabels: Record<OutputKind, string> = {
-  linkedin_blog: 'LinkedIn / Blog', x_thread: 'X thread',
-  instagram_facebook: 'Instagram / Facebook', tiktok_reels: 'TikTok / Reels script',
+export type Output = {
+  id: string
+  project_id: string
+  user_id: string
+  format: FormatId
+  content: string
+  generated_content: string
+  edited: boolean
+  updated_at: string
+}
+
+export type MemorySource = 'onboarding' | 'explicit' | 'approved_suggestion' | 'manual'
+
+export type Memory = {
+  id: string
+  user_id: string
+  content: string
+  source: MemorySource
+  created_at: string
+  updated_at: string
+}
+
+export type MemorySuggestion = {
+  id: string
+  user_id: string
+  project_id: string | null
+  format: string | null
+  content: string
+  rationale: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
 }

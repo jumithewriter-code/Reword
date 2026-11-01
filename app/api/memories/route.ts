@@ -1,3 +1,36 @@
-import { NextResponse } from 'next/server'; import { z } from 'zod'; import { requireUser } from '@/lib/auth'; import { makeId, mutate, query } from '@/lib/db'; import { addMemory } from '@/lib/minds'; import { jsonError } from '@/lib/api'; import type { Memory } from '@/lib/types'
-export async function GET(){try{const user=await requireUser();const data=await query(db=>({memories:db.memories.filter(m=>m.userId===user.id),suggestions:db.suggestions.filter(s=>s.userId===user.id&&s.status==='pending')}));return NextResponse.json(data)}catch(e){return jsonError(e)}}
-export async function POST(request:Request){try{const user=await requireUser();const {content}=z.object({content:z.string().trim().min(3).max(500)}).parse(await request.json());const now=new Date().toISOString(),memory:Memory={id:makeId('mem'),userId:user.id,content,source:'explicit',createdAt:now,updatedAt:now};memory.remoteId=await addMemory(user.mindsId,memory.id,content);await mutate(db=>db.memories.push(memory));return NextResponse.json({memory},{status:201})}catch(e){return jsonError(e)}}
+import { NextResponse } from 'next/server'
+import { bad, errorMessage, isResponse, requireUser } from '@/lib/api'
+import { createMemory, listMemories, listPendingSuggestions } from '@/lib/onevoice'
+
+export async function GET() {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+  try {
+    const [memories, suggestions] = await Promise.all([
+      listMemories(ctx.supabase, ctx.userId),
+      listPendingSuggestions(ctx.supabase, ctx.userId),
+    ])
+    return NextResponse.json({ memories, suggestions })
+  } catch (err) {
+    return bad(errorMessage(err), 500)
+  }
+}
+
+/** Explicit "Remember this preference" and manual additions (scope 3.4). */
+export async function POST(request: Request) {
+  const ctx = await requireUser()
+  if (isResponse(ctx)) return ctx
+
+  const body = await request.json().catch(() => null)
+  const content = typeof body?.content === 'string' ? body.content.trim() : ''
+  if (!content) return bad('content is required')
+  if (content.length > 500) return bad('Keep a memory under 500 characters')
+
+  const source = body?.source === 'explicit' ? 'explicit' : 'manual'
+  try {
+    const memory = await createMemory(ctx.supabase, ctx.userId, content, source)
+    return NextResponse.json({ memory })
+  } catch (err) {
+    return bad(errorMessage(err), 500)
+  }
+}
