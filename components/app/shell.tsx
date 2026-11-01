@@ -3,23 +3,15 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  ChevronDown,
-  CircleHelp,
-  LayoutDashboard,
-  Library,
-  LogOut,
-  Settings,
-  Sparkles,
-  WandSparkles,
-} from 'lucide-react'
+import { ChevronDown, FolderOpen, Library, LogOut, Mic, Plus, Settings, WandSparkles } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { ThemeToggle } from '@/components/app/theme-toggle'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/lib/types'
 
 const NAV = [
-  { href: '/studio', label: 'Studio', icon: LayoutDashboard },
+  { href: '/studio', label: 'Studio', icon: Mic },
+  { href: '/projects', label: 'Projects', icon: FolderOpen },
   { href: '/library', label: 'Library', icon: Library },
   { href: '/onevoice', label: 'OneVoice', icon: WandSparkles },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -38,37 +30,35 @@ export function Shell({
 }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  const current = NAV.find((n) => pathname.startsWith(n.href))?.label ?? 'Studio'
+  const current = NAV.find((n) => isActive(pathname, n.href))?.label ?? 'Studio'
   const initials = getInitials(profile?.name, email)
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* ------------------------------------------------------- sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card p-5 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card p-5 md:flex">
         <Link href="/studio" aria-label="Reword home">
           <Logo />
         </Link>
 
         <Link
           href="/studio"
-          className="mt-9 flex h-11 items-center justify-center gap-2.5 rounded-xl bg-primary text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          className="mt-9 flex h-11 items-center gap-2.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90"
         >
-          <Sparkles size={16} fill="currentColor" /> New project
+          <Plus size={17} /> New project
         </Link>
 
         <nav className="mt-7 flex flex-col gap-1">
           {NAV.map(({ href, label, icon: Icon }) => {
-            const active = pathname.startsWith(href)
+            const active = isActive(pathname, href)
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition',
-                  active
-                    ? 'bg-muted font-medium text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                  active ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                 )}
               >
                 <Icon size={17} className={active ? 'text-primary' : ''} />
@@ -83,20 +73,13 @@ export function Shell({
           })}
         </nav>
 
-        <div className="mt-auto flex flex-col gap-1">
-          <Link
-            href="/pricing"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            <CircleHelp size={17} /> Plans &amp; pricing
-          </Link>
-
-          <div className="mt-3 flex items-center gap-3 border-t border-border pt-4">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+        <div className="mt-auto">
+          <div className="flex items-center gap-3 border-t border-border pt-4">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/25 text-xs font-bold">
               {initials}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm">{profile?.name || email || 'Your account'}</span>
+              <span className="block truncate text-sm font-semibold">{profile?.name || email || 'Your account'}</span>
               <span className="block truncate text-xs capitalize text-muted-foreground">
                 {profile?.plan ?? 'free'} plan
               </span>
@@ -116,16 +99,11 @@ export function Shell({
 
       {/* ---------------------------------------------------------- main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-border px-5 py-4 md:px-9">
-          <div className="md:hidden">
-            <Logo />
-          </div>
-          <div className="hidden text-sm text-muted-foreground md:block">
-            Workspace <span className="px-2">/</span> <span className="text-foreground">{current}</span>
-          </div>
+        <header className="flex items-center gap-3 border-b border-border px-5 py-4 md:hidden">
+          <Logo />
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/20 text-xs font-semibold text-primary md:hidden">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
               {initials}
             </span>
           </div>
@@ -153,7 +131,7 @@ export function Shell({
                   onClick={() => setMenuOpen(false)}
                   className={cn(
                     'rounded-xl px-3 py-2.5 text-sm transition',
-                    pathname.startsWith(href)
+                    isActive(pathname, href)
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
@@ -179,8 +157,17 @@ export function Shell({
 
         {children}
       </div>
+
+      <div className="fixed bottom-5 right-5 z-20 hidden md:block">
+        <ThemeToggle />
+      </div>
     </div>
   )
+}
+
+// /projects/[id] is a single project, not the Projects list.
+function isActive(pathname: string, href: string) {
+  return href === '/projects' ? pathname === href : pathname.startsWith(href)
 }
 
 function getInitials(name?: string | null, email?: string | null) {

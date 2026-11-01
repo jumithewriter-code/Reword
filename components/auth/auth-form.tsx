@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 
 export function AuthForm({
-  mode,
+  mode: initialMode,
   configured,
   bare = false,
 }: {
@@ -23,6 +23,8 @@ export function AuthForm({
   const params = useSearchParams()
   const next = params.get('next') || '/studio'
 
+  const [mode, setMode] = useState(initialMode)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState<'email' | 'google' | null>(null)
@@ -41,7 +43,10 @@ export function AuthForm({
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${location.origin}/auth/callback?next=/onboarding` },
+          options: {
+            data: { name: name.trim() || undefined },
+            emailRedirectTo: `${location.origin}/auth/callback?next=/onboarding`,
+          },
         })
         if (error) throw error
         // With email confirmation disabled, Supabase returns a session immediately.
@@ -99,15 +104,13 @@ export function AuthForm({
 
   return (
     <Shell bare={bare}>
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-          {isSignup ? 'Create your account' : 'Welcome back'}
-          <span className="text-primary">.</span>
+      <div className="mb-8">
+        <p className="text-sm font-semibold text-primary">{isSignup ? 'Start creating' : 'Welcome back'}</p>
+        <h1 className="mt-2 text-4xl font-semibold tracking-[-.04em]">
+          {isSignup ? 'Create your account' : 'Sign in to Reword'}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {isSignup
-            ? 'Start turning what you know into content people want to hear.'
-            : 'Sign in to your Reword studio.'}
+        <p className="mt-3 text-muted-foreground">
+          {isSignup ? 'Build your voice profile in a few minutes.' : 'Your ideas are waiting.'}
         </p>
       </div>
 
@@ -122,22 +125,21 @@ export function AuthForm({
         </div>
       )}
 
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onGoogle}
-        disabled={!configured || busy !== null}
-        className="h-11 w-full gap-2.5 rounded-xl text-sm"
-      >
-        {busy === 'google' ? <Spinner /> : <GoogleMark />}
-        Continue with Google
-      </Button>
-
-      <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-widest text-muted-foreground">
-        <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
-      </div>
-
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        {isSignup && (
+          <div>
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              required
+              autoComplete="name"
+              placeholder="Alex Morgan"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={!configured}
+            />
+          </div>
+        )}
         <div>
           <Label htmlFor="email">Email</Label>
           <Input
@@ -173,17 +175,45 @@ export function AuthForm({
           </div>
         )}
 
-        <Button type="submit" disabled={!configured || busy !== null} className="h-11 w-full rounded-xl text-sm">
+        <Button type="submit" disabled={!configured || busy !== null} className="mt-2 h-12 w-full rounded-xl text-sm">
           {busy === 'email' ? <Spinner /> : isSignup ? 'Create account' : 'Sign in'}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        {isSignup ? 'Already have an account? ' : 'New to Reword? '}
-        <Link href={isSignup ? '/login' : '/signup'} className="text-primary hover:underline">
-          {isSignup ? 'Sign in' : 'Create an account'}
-        </Link>
-      </p>
+      <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onGoogle}
+        disabled={!configured || busy !== null}
+        className="h-12 w-full gap-2.5 rounded-xl text-sm"
+      >
+        {busy === 'google' ? <Spinner /> : <GoogleMark />}
+        Continue with Google
+      </Button>
+
+      {bare ? (
+        <button
+          type="button"
+          onClick={() => {
+            setMode(isSignup ? 'login' : 'signup')
+            setError(null)
+          }}
+          className="mt-6 w-full text-sm text-muted-foreground hover:text-foreground"
+        >
+          {isSignup ? 'Already have an account? Sign in' : 'New to Reword? Create an account'}
+        </button>
+      ) : (
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          {isSignup ? 'Already have an account? ' : 'New to Reword? '}
+          <Link href={isSignup ? '/login' : '/signup'} className="text-primary hover:underline">
+            {isSignup ? 'Sign in' : 'Create an account'}
+          </Link>
+        </p>
+      )}
     </Shell>
   )
 }

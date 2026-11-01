@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/field'
 import { MAX_AUDIO_BYTES } from '@/lib/transcribe'
 import { cn } from '@/lib/utils'
 
-type Phase = 'idle' | 'recording' | 'ready' | 'working'
+type Phase = 'idle' | 'recording' | 'ready' | 'working' | 'paste'
 
 /** Record inside Reword, or upload an existing file (scope 3.2). */
 export function Recorder({ disabled, disabledReason }: { disabled?: boolean; disabledReason?: string }) {
@@ -19,6 +19,7 @@ export function Recorder({ disabled, disabledReason }: { disabled?: boolean; dis
   const [levels, setLevels] = useState<number[]>(Array(28).fill(4))
   const [clip, setClip] = useState<{ file: File; url: string; source: 'record' | 'upload' } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pasted, setPasted] = useState('')
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
@@ -140,6 +141,24 @@ export function Recorder({ disabled, disabledReason }: { disabled?: boolean; dis
     }
   }
 
+  async function submitPasted() {
+    setPhase('working')
+    setError(null)
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: pasted }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Could not create the project')
+      router.push(`/projects/${json.project.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setPhase('paste')
+    }
+  }
+
   if (disabled) {
     return (
       <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center">
@@ -152,34 +171,86 @@ export function Recorder({ disabled, disabledReason }: { disabled?: boolean; dis
     )
   }
 
-  return (
-    <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
-      {phase === 'idle' && (
-        <div className="text-center">
+  const errorBox = error && (
+    <div className={cn('mt-5 flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs leading-5 text-destructive')}>
+      <AlertCircle size={14} className="mt-0.5 shrink-0" />
+      <p>{error}</p>
+    </div>
+  )
+
+  if (phase === 'idle') {
+    return (
+      <div>
+        <div className="grid gap-4 md:grid-cols-2">
           <button
             onClick={startRecording}
-            className="group relative mx-auto grid size-20 place-items-center rounded-full bg-primary text-primary-foreground transition hover:scale-105"
-            aria-label="Start recording"
+            className="min-h-64 rounded-3xl border border-border bg-card p-7 text-left transition hover:-translate-y-1 hover:border-primary/50"
           >
-            <span className="absolute inset-0 rounded-full bg-primary/40 opacity-0 transition group-hover:animate-pulse-ring group-hover:opacity-100" />
-            <Mic size={28} />
+            <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
+              <Mic size={21} />
+            </span>
+            <h2 className="mt-16 text-2xl font-semibold">Record in Reword</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Live browser transcription keeps the flow immediate.
+            </p>
           </button>
-          <p className="mt-5 text-lg font-medium">Capture a thought</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-            Talk it through the way you would to a friend. Reword handles the shaping.
-          </p>
-
-          <div className="mx-auto my-6 flex max-w-xs items-center gap-3 text-[11px] uppercase tracking-widest text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <label className="mx-auto flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm transition hover:bg-muted">
-            <Upload size={16} />
-            Upload an audio file
+          <label className="min-h-64 cursor-pointer rounded-3xl border border-dashed border-border bg-card p-7 transition hover:-translate-y-1 hover:border-primary">
+            <span className="grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+              <Upload size={21} />
+            </span>
+            <h2 className="mt-16 text-2xl font-semibold">Upload audio</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              MP3, M4A, WAV, WebM, or another common audio format.
+            </p>
             <input type="file" accept="audio/*,video/mp4" className="sr-only" onChange={onUpload} />
           </label>
+          <button
+            onClick={() => {
+              setError(null)
+              setPhase('paste')
+            }}
+            className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground md:col-span-2"
+          >
+            Already have a transcript? Paste it instead
+          </button>
         </div>
-      )}
+        {errorBox}
+      </div>
+    )
+  }
+
+  if (phase === 'paste' || (phase === 'working' && !clip)) {
+    return (
+      <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
+        <p className="text-sm font-semibold">Paste your transcript</p>
+        <p className="mt-1 text-xs text-muted-foreground">You can edit it again before generating.</p>
+        <textarea
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          placeholder="Paste or type what you said."
+          className="mt-5 min-h-72 w-full rounded-2xl border border-border bg-background p-4 text-sm leading-6 outline-none focus:border-primary"
+        />
+        <Button
+          onClick={submitPasted}
+          disabled={phase === 'working' || !pasted.trim()}
+          className="mt-5 h-11 w-full gap-2 rounded-xl"
+        >
+          {phase === 'working' ? <Spinner /> : 'Create project'}
+        </Button>
+        <button
+          onClick={() => setPhase('idle')}
+          disabled={phase === 'working'}
+          className="mt-3 w-full text-sm text-muted-foreground hover:text-foreground"
+        >
+          Choose another source
+        </button>
+        {errorBox}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6 md:p-8">
 
       {phase === 'recording' && (
         <div className="text-center">
@@ -236,12 +307,7 @@ export function Recorder({ disabled, disabledReason }: { disabled?: boolean; dis
         </div>
       )}
 
-      {error && (
-        <div className={cn('mt-5 flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs leading-5 text-destructive')}>
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
+      {errorBox}
     </div>
   )
 }
