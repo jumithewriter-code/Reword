@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/pricing', '/auth']
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/pricing', '/privacy', '/terms', '/auth']
 
 /**
  * API routes authenticate themselves via requireUser() and answer with JSON.

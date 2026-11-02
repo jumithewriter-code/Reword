@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Logo } from '@/components/logo'
 import { ThemeToggle } from '@/components/app/theme-toggle'
@@ -54,6 +55,17 @@ export default async function LandingPage() {
           <Suspense>
             <AuthForm mode="signup" configured={configured} bare />
           </Suspense>
+          <p className="mt-8 text-center text-xs leading-5 text-muted-foreground">
+            By continuing, you agree to our{' '}
+            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+              Terms and Conditions
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </main>
     </div>
