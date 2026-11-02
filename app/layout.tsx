@@ -7,7 +7,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Reword — Make your ideas worth sharing',
   description: 'Reword turns your recorded thoughts into content for LinkedIn, X, Instagram and TikTok — in your own voice.',
-  icons: { icon: '/favicon.png', shortcut: '/favicon.png', apple: '/favicon.png' },
+  icons: { icon: '/favicon.png', shortcut: '/favicon.png', apple: '/apple-icon.png' },
 }
 
 export const viewport: Viewport = {
