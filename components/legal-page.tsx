@@ -4,7 +4,7 @@ import { Logo } from '@/components/logo'
 import { ThemeToggle } from '@/components/app/theme-toggle'
 
 /** Contact address shown on the Privacy Policy and Terms. */
-export const LEGAL_CONTACT = 'jumithewriter@gmail.com'
+export const LEGAL_CONTACT = 'theinklabscompany@gmail.com'
 export const LEGAL_UPDATED = '2 November 2026'
 
 export function LegalPage({ title, intro, children }: { title: string; intro: string; children: React.ReactNode }) {
