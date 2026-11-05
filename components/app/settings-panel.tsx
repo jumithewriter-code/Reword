@@ -158,12 +158,12 @@ export function SettingsPanel({
       <Section icon={Sparkles} title="Subscription">
         <Row title="Current plan" description={`${plan.name} · ${plan.blurb}`}>
           <Link href="/pricing">
-            <Button variant={plan.id === 'free' ? 'default' : 'outline'} className="h-9 rounded-xl">
-              {plan.id === 'free' ? 'Upgrade' : 'Change plan'}
+            <Button variant="outline" className="h-9 rounded-xl">
+              View plans
             </Button>
           </Link>
         </Row>
-        <Row title="Billing" description="Paid plans are presented but not yet charged in this build.">
+        <Row title="Upgrades and billing" description="Paid plans are coming soon. Upgrades open once payments are connected.">
           <ComingSoon />
         </Row>
       </Section>

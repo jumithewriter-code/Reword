@@ -29,7 +29,9 @@ export async function PATCH(request: Request) {
     if (typeof body[field] === 'string') patch[field] = body[field].trim().slice(0, 5000)
   }
   if (typeof body.onboarded === 'boolean') patch.onboarded = body.onboarded
-  if (body.plan === 'free' || body.plan === 'creator' || body.plan === 'studio') patch.plan = body.plan
+  // Billing is not connected yet, so paid plans cannot be self-activated.
+  if (body.plan === 'creator' || body.plan === 'studio') return bad('Paid plans are coming soon.', 403)
+  if (body.plan === 'free') patch.plan = body.plan
   if (!Object.keys(patch).length) return bad('Nothing to update')
   patch.updated_at = new Date().toISOString()
 
